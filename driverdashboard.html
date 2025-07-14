@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>GÉNESIS Driver Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f6f6f6;
+    }
+
+    header {
+      background-color: #28a745;
+      color: white;
+      padding: 20px;
+      text-align: center;
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    .dashboard-container {
+      background: #fff;
+      margin: 20px;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead {
+      background-color: #28a745;
+      color: #fff;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: center;
+      border-bottom: 1px solid #ddd;
+      font-size: 14px;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+
+    button.confirm-btn {
+      padding: 8px 12px;
+      background-color: #28a745;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button.confirm-btn:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 60px;
+      background: #fff;
+      border-top: 1px solid #ddd;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+    }
+
+    .bottom-nav div {
+      text-align: center;
+      font-size: 12px;
+      color: #444;
+    }
+  </style>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+    const supabaseUrl = 'https://jcdyfucgzuwrmwlgdlmd.supabase.co'
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjZHlmdWNnenV3cm13bGdkbG1kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0OTU3ODEsImV4cCI6MjA2NzA3MTc4MX0.FToXBr9RD8PrCVE7QoVenAKWwBylUTXaqrkcLV25m9U'
+    const supabase = createClient(supabaseUrl, supabaseKey)
+
+    async function loadBookings() {
+      const { data: bookings, error } = await supabase
+        .from('bookings')
+        .select('*')
+        .in('status', ['pending', 'confirmed'])
+        .eq('city', 'cdmx')
+
+      if (error) {
+        alert('Error loading bookings: ' + error.message)
+        return
+      }
+
+      const tableBody = document.getElementById('booking-body')
+      tableBody.innerHTML = ''
+
+      if (!bookings.length) {
+        tableBody.innerHTML = '<tr><td colspan="7">No bookings found</td></tr>'
+        return
+      }
+
+      bookings.forEach(booking => {
+        const row = document.createElement('tr')
+        row.innerHTML = `
+          <td>${booking.booking_id}</td>
+          <td>${booking.pickup_stop_id}</td>
+          <td>${booking.dropoff_stop_id}</td>
+          <td>${new Date(booking.requested_time).toLocaleString()}</td>
+          <td>${booking.move_size}</td>
+          <td>${booking.status}</td>
+          <td>
+            ${booking.status === 'pending'
+              ? `<button class="confirm-btn" onclick="confirmBooking('${booking.booking_id}')">Confirm</button>`
+              : '✅ Confirmed'}
+          </td>
+        `
+        tableBody.appendChild(row)
+      })
+    }
+
+    window.confirmBooking = async function (bookingId) {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: 'confirmed' })
+        .eq('booking_id', bookingId)
+
+      if (error) {
+        alert('Failed to confirm booking: ' + error.message)
+      } else {
+        alert('Booking confirmed!')
+        loadBookings()
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', loadBookings)
+  </script>
+</head>
+
+<body>
+  <header>GÉNESIS Driver Dashboard</header>
+
+  <div class="dashboard-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Booking ID</th>
+          <th>Pickup</th>
+          <th>Dropoff</th>
+          <th>Requested Time</th>
+          <th>Move Size</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="booking-body"></tbody>
+    </table>
+  </div>
+
+  <div class="bottom-nav">
+    <div>🏠<br>Home</div>
+    <div>🚚<br>Orders</div>
+    <div>💬<br>Messages</div>
+    <div>👤<br>Profile</div>
+  </div>
+</body>
+</html>

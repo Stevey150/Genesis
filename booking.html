@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>GÉNESIS Booking Form</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    crossorigin=""
+  />
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f6f6f6;
+    }
+
+    #map {
+      height: 300px;
+      width: 100%;
+    }
+
+    .form-container {
+      background-color: #fff;
+      border-radius: 16px 16px 0 0;
+      margin-top: -20px;
+      padding: 20px;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+      position: relative;
+      z-index: 10;
+    }
+
+    .form-group {
+      display: flex;
+      align-items: center;
+      margin-bottom: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 10px;
+      background: #fff;
+    }
+
+    .form-group select,
+    .form-group input {
+      border: none;
+      flex: 1;
+      font-size: 16px;
+      outline: none;
+      background: transparent;
+    }
+
+    .form-group::before {
+      content: '📍';
+      margin-right: 8px;
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 12px;
+      background-color: #28a745;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 60px;
+      background: #fff;
+      border-top: 1px solid #ddd;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+    }
+
+    .bottom-nav div {
+      text-align: center;
+      font-size: 12px;
+      color: #444;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- MAP -->
+  <div id="map"></div>
+
+  <!-- FORM -->
+  <div class="form-container">
+    <form id="booking-form" onsubmit="submitBooking(event)">
+      <div class="form-group">
+        <select id="pickup" name="pickup" required>
+          <option value="">Pickup Location</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <select id="dropoff" name="dropoff" required>
+          <option value="">Drop-off Location</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <input type="datetime-local" id="requested_time" name="requested_time" required>
+      </div>
+
+      <div class="form-group">
+        <select id="move_size" name="move_size" required>
+          <option value="">Select Move Size</option>
+          <option value="small">Not too much to move</option>
+          <option value="medium">Medium amount</option>
+          <option value="large">A lot to move</option>
+        </select>
+      </div>
+
+      <button class="submit-btn" type="submit">Next</button>
+    </form>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <div>🏠<br>Home</div>
+    <div>🚚<br>Orders</div>
+    <div>💬<br>Messages</div>
+    <div>👤<br>Profile</div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    crossorigin=""
+  ></script>
+
+  <!-- Supabase + Booking Form Logic -->
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+    // Initialize Supabase
+    const supabaseUrl = 'https://jcdyfucgzuwrmwlgdlmd.supabase.co'
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjZHlmdWNnenV3cm13bGdkbG1kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0OTU3ODEsImV4cCI6MjA2NzA3MTc4MX0.FToXBr9RD8PrCVE7QoVenAKWwBylUTXaqrkcLV25m9U'
+    const supabase = createClient(supabaseUrl, supabaseKey)
+
+    function generateBookingId(city = 'CDMX') {
+      const rand = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
+      return `${city.toUpperCase()}_BKG_${rand}`
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      const { data: stops, error } = await supabase.from('stops').select('*').limit(100)
+      if (error) {
+        alert('Error loading stops: ' + error.message)
+        return
+      }
+
+      const pickupSelect = document.getElementById('pickup')
+      const dropoffSelect = document.getElementById('dropoff')
+      stops.forEach(stop => {
+        const option = `<option value="${stop.stop_id}">${stop.stop_name}</option>`
+        pickupSelect.innerHTML += option
+        dropoffSelect.innerHTML += option
+      })
+    })
+
+    async function submitBooking(event) {
+      event.preventDefault()
+      const form = event.target
+      const bookingId = generateBookingId('cdmx')
+
+      const { error } = await supabase.from('bookings').insert([{
+        booking_id: bookingId,
+        pickup_stop_id: form.pickup.value,
+        dropoff_stop_id: form.dropoff.value,
+        requested_time: form.requested_time.value,
+        move_size: form.move_size.value,
+        vehicle_type: 'truck',
+        city: 'cdmx',
+        status: 'pending'
+      }])
+
+      if (error) {
+        alert('Booking failed: ' + error.message)
+      } else {
+        alert('Booking submitted! ID: ' + bookingId)
+        form.reset()
+      }
+    }
+
+    window.submitBooking = submitBooking
+
+    // Initialize Map centered on Mexico City
+const map = L.map('map').setView([19.4326, -99.1332], 13)
+
+L.tileLayer('https://api.maptiler.com/maps/basic-v2/256/{z}/{x}/{y}.png?key=eOWFMplFwiWHkQJD0W26', {
+  attribution: '&copy; MapTiler',
+}).addTo(map)
+
+// Add a marker at Mexico City center
+const marker = L.marker([19.4326, -99.1332]).addTo(map)
+  </script>
+</body>
+</html>
